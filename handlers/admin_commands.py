@@ -134,10 +134,12 @@ async def allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: A
 async def allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncSession):
     working_shift_id = callback.data.split("_")[-2]
     tg_id_worker = callback.data.split("_")[-1]
+    working_shift = await orm_get_working_shift(session, int(working_shift_id))
+    text = await generation_text_shifts_workers(working_shift)
     await orm_update_approval_admin(session, str(tg_id_worker), int(working_shift_id), False)
     await callback.answer()
     await bot.send_message(tg_id_worker,
-                           f"Менеджер вам отказал❌\n")
+                           f"❌Менеджер вам отказал❌\n{text}")
 
 
 # Отлавливает нажатие кнопки "Добавить смену". Входит в режим FSM, отправляет сообщение пользователю

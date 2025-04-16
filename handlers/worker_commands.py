@@ -86,29 +86,34 @@ async def going_on_shift(callback: types.CallbackQuery, session: AsyncSession, b
     worker = await orm_get_worker(session, str(callback.from_user.id))
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
     work_shift_worker = await orm_get_work_shift_worker(session, str(callback.from_user.id), int(working_shift_id))
-    message_text = ()
+    message_text = (f"➡{worker.name_worker} {worker.surname_worker}⬅\n☎+7{worker.phone_number_worker}\n"
+                    f"Готов выйти на смену!\n\n"
+                    f"Дата📆: {working_shift.date_time_working_shift.strftime("%d.%m.20%y")}\n"
+                    f"Время начала⌚: {working_shift.date_time_working_shift.strftime("%H:%M")}\n"
+                    f"Адрес🏠: {working_shift.address}\n"
+                    f"Описание: {working_shift.description_working_shift}\n")
     if work_shift_worker:
         if work_shift_worker.going_on_shift:
             await callback.message.answer("Вы уже записаны на эту смену!")
-    else:
-        if not work_shift_worker:
-            await orm_add_work_shift_worker(session, int(working_shift_id), str(callback.from_user.id),
-                                            True, None)
         else:
             await orm_update_going_on_shift(session, str(callback.from_user.id), int(working_shift_id), True)
-        await bot.send_message(working_shift.tg_id_admin,
-                               f"➡{worker.name_worker} {worker.surname_worker}⬅\n☎+7{worker.phone_number_worker}\n"
-                               f"Готов выйти на смену!\n\n"
-                               f"Дата📆: {working_shift.date_time_working_shift.strftime("%d.%m.20%y")}\n"
-                               f"Время начала⌚: {working_shift.date_time_working_shift.strftime("%H:%M")}\n"
-                               f"Адрес🏠: {working_shift.address}\n"
-                               f"Описание: {working_shift.description_working_shift}\n",
+            await bot.send_message(working_shift.tg_id_admin, message_text,
+                                   reply_markup=get_callback_buts(buts={"✅Одобрить": f"allowshift_{working_shift_id}_"
+                                                                                     f"{worker.tg_id_worker}",
+                                                                        "❌Отказать": f"notallowshift_{working_shift_id}_"
+                                                                                     f"{worker.tg_id_worker}"},
+                                                                  sizes=(2,))
+                                   )
+    else:
+        await orm_add_work_shift_worker(session, int(working_shift_id), str(callback.from_user.id),
+                                        True, None)
+        await bot.send_message(working_shift.tg_id_admin, message_text,
                                reply_markup=get_callback_buts(buts={"✅Одобрить": f"allowshift_{working_shift_id}_"
                                                                                  f"{worker.tg_id_worker}",
                                                                     "❌Отказать": f"notallowshift_{working_shift_id}_"
                                                                                    f"{worker.tg_id_worker}"},
                                                               sizes=(2,))
-        )
+                               )
     await callback.answer()
 
 
