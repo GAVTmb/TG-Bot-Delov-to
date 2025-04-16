@@ -43,7 +43,7 @@ async def orm_get_all_working_shifts(session: AsyncSession):
 
 # Находит и выдает предстоящие смены.
 async def orm_get_upcoming_working_shifts(session: AsyncSession):
-    query = (select(WorkingShift).where(WorkingShift.date_time_working_shift > datetime.datetime.today()))
+    query = select(WorkingShift).where(WorkingShift.date_time_working_shift > datetime.datetime.today())
     result = await session.execute(query)
     return result.scalars().all()
 
@@ -51,7 +51,7 @@ async def orm_get_upcoming_working_shifts(session: AsyncSession):
 
 # Находит и выдает прошедшие смены.
 async def orm_get_past_work_shifts(session: AsyncSession):
-    query = (select(WorkingShift).where(WorkingShift.date_time_working_shift < datetime.datetime.today()))
+    query = select(WorkingShift).where(WorkingShift.date_time_working_shift < datetime.datetime.today())
     result = await session.execute(query)
     return result.scalars().all()
 

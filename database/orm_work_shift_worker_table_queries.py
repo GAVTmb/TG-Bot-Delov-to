@@ -36,3 +36,10 @@ async def orm_get_work_shift_worker(session: AsyncSession, tg_id: str, w_s_id: i
                                           WorkShiftWorker.tg_id_worker == tg_id)
     result = await session.execute(query)
     return result.scalar()
+
+
+async def orm_get_all_work_shift_worker(session: AsyncSession, work_shift_id: int):
+    query = select(WorkShiftWorker.tg_id_worker).where(WorkShiftWorker.working_shift_id == work_shift_id,
+                                                       WorkShiftWorker.approval_admin == True)
+    result = await session.execute(query)
+    return result.scalars().all()

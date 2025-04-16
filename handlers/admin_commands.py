@@ -22,7 +22,7 @@ from database.orm_worker_table_queries import orm_update_worker_access, orm_get_
 from database.orm_working_shift_table_queries import (orm_add_working_shift, orm_update_working_shift,
                                                       orm_get_upcoming_working_shifts, orm_get_working_shift,
                                                       orm_get_past_work_shifts)
-from database.orm_work_shift_worker_table_queries import orm_update_approval_admin
+from database.orm_work_shift_worker_table_queries import orm_update_approval_admin, orm_get_all_work_shift_worker
 
 from additional_functions import sending_shifts_workers, generation_text_shifts_workers
 
@@ -146,7 +146,13 @@ async def upcoming_work_shifts(callback: types.CallbackQuery, session: AsyncSess
         text = await generation_text_shifts_workers(upcoming_work_shift)
         await callback.message.answer(f"➡Предстоящие смены⬅\n"
                                       f"Смену создал(а): {admin.name} {admin.surname}\n☎+7{admin.phone_number}\n"
-                                      f"{text}")
+                                      f"{text}",
+                                      reply_markup=get_callback_buts(buts={
+                                          "Изменить смену": f"changeshift_{upcoming_work_shift.id}",
+                                          "Удалить смену": f"deleteshift_{upcoming_work_shift.id}",
+                                          "Посмотреть работников смены": f"shiftworkers_{upcoming_work_shift.id}",},
+                                          sizes=(2, 1))
+                                      )
     await callback.answer()
 
 
@@ -158,7 +164,31 @@ async def past_work_shifts(callback: types.CallbackQuery, session: AsyncSession)
         text = await generation_text_shifts_workers(past_work_shift)
         await callback.message.answer(f"➡Прошедшие смены⬅\n"
                                       f"Смену создал(а): {admin.name} {admin.surname}\n☎+7{admin.phone_number}\n"
-                                      f"{text}")
+                                      f"{text}",
+                                      reply_markup=get_callback_buts(buts={
+                                          "Посмотреть работников смены": f"shiftworkers_{past_work_shift.id}", },
+                                          sizes=(1,))
+                                      )
+    await callback.answer()
+
+
+# Отлавливает нажатие кнопки "Посмотреть работников смены".
+@admin_commands_router.callback_query(StateFilter(None), F.data.startswith("shiftworkers_"))
+async def view_shift_workers(callback: types.CallbackQuery, session: AsyncSession):
+    work_shift_id = int(callback.data.split("_")[-1])
+    tg_id_workers = await orm_get_all_work_shift_worker(session, int(work_shift_id))
+    worker_shift = await orm_get_working_shift(session, work_shift_id)
+    text_worker_shift = await generation_text_shifts_workers(worker_shift)
+    text_worker_list = []
+    counter = 0
+    for tg_id_worker in tg_id_workers:
+        counter += 1
+        worker = await orm_get_worker(session, str(tg_id_worker))
+        text_worker = f"{counter}. {worker.name_worker} {worker.surname_worker}\n"
+        text_worker_list.append(text_worker)
+    await callback.message.edit_text(f"{text_worker_shift}\n\n"
+                                     f"Выходили на смену!\n"
+                                     f"{"".join(text_worker_list)}")
     await callback.answer()
 
 
