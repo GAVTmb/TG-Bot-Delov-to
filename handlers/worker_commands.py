@@ -86,6 +86,7 @@ async def going_on_shift(callback: types.CallbackQuery, session: AsyncSession, b
     worker = await orm_get_worker(session, str(callback.from_user.id))
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
     work_shift_worker = await orm_get_work_shift_worker(session, str(callback.from_user.id), int(working_shift_id))
+    message_text = ()
     if work_shift_worker:
         if work_shift_worker.going_on_shift:
             await callback.message.answer("Вы уже записаны на эту смену!")
