@@ -154,6 +154,8 @@ async def admin_registration_tg_id(message: types.Message, state: FSMContext):
 async def admin_registration_name(message: types.Message, state: FSMContext):
     print(message.text)
     try:
+        if len(message.text) < 2:
+            raise ValueError
         if RegistrationAdmin.admin_data_for_change:
             await state.update_data(tg_id_admin=RegistrationAdmin.admin_data_for_change.tg_id_admin)
             await state.update_data(admin_access=RegistrationAdmin.admin_data_for_change.admin_access)
@@ -181,6 +183,8 @@ async def admin_registration_name(message: types.Message, state: FSMContext):
 @admin_login_router.message(StateFilter(RegistrationAdmin.surname))
 async def admin_registration_surname(message: types.Message, state: FSMContext):
     try:
+        if len(message.text) < 2:
+            raise ValueError
         if message.text == "_Пропустить_":
             await state.update_data(surname=RegistrationAdmin.admin_data_for_change.surname)
             await message.answer("Напишите ваш Номер телефона в формате 89001112233.",

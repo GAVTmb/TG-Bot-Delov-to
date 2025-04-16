@@ -20,7 +20,8 @@ from handlers.admin_authorization import RegistrationAdmin, AddWorkingShift
 from database.orm_admin_table_queries import orm_get_admin
 from database.orm_worker_table_queries import orm_update_worker_access, orm_get_worker, orm_get_all_workers
 from database.orm_working_shift_table_queries import (orm_add_working_shift, orm_update_working_shift,
-                                                      orm_get_all_working_shifts, orm_get_working_shift)
+                                                      orm_get_upcoming_working_shifts, orm_get_working_shift,
+                                                      orm_get_past_work_shifts)
 from database.orm_work_shift_worker_table_queries import orm_update_approval_admin
 
 from additional_functions import sending_shifts_workers, generation_text_shifts_workers
@@ -32,16 +33,11 @@ admin_commands_router = Router()
 # Отлавливает нажатие кнопки "Посмотреть смены"
 @admin_commands_router.message(F.text == "Посмотреть смены")
 async def show_all_working_change_admin(message: types.Message, session: AsyncSession, bot: Bot):
-    for working_shift in await orm_get_all_working_shifts(session):
-        text = await generation_text_shifts_workers(working_shift)
-        await message.answer(text)
-                             # reply_markup=get_callback_buts(buts={
-                             #    "Удалить": f"delete_{working_shift.id}",
-                             #    "Изменить": f"change_{working_shift.id}",
-                             #    "Отзывы": f"feedbacks_{working_shift.id}",
-                             #    "Участники": f"participants_{working_shift.id}"
-                             # }, sizes=(2, 2))
-                             # )
+    await message.answer(f"Какие смены вам показать?",
+                         reply_markup=get_callback_buts(buts={"Предстоящие": f"upcomingworkshifts_",
+                                                              "Прошедшие": f"pastworkshifts_",},
+                                                        sizes=(2,))
+                         )
 
 # Отлавливает нажатие кнопки "➡Посмотреть мои данные"
 @admin_commands_router.message(F.text == "➡Посмотреть мои данные")
@@ -131,7 +127,7 @@ async def allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: A
 
 # Отлавливает нажатие кнопки "❌Отказать"
 @admin_commands_router.callback_query(StateFilter(None), F.data.startswith("notallowshift_"))
-async def allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncSession):
+async def not_allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncSession):
     working_shift_id = callback.data.split("_")[-2]
     tg_id_worker = callback.data.split("_")[-1]
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
@@ -140,6 +136,30 @@ async def allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: A
     await callback.answer()
     await bot.send_message(tg_id_worker,
                            f"❌Менеджер вам отказал❌\n{text}")
+
+
+# Отлавливает нажатие кнопки "Предстоящие". Выдает предстоящие рабочие смены.
+@admin_commands_router.callback_query(StateFilter(None), F.data.startswith("upcomingworkshifts_"))
+async def upcoming_work_shifts(callback: types.CallbackQuery, session: AsyncSession):
+    for upcoming_work_shift in await orm_get_upcoming_working_shifts(session):
+        admin = await orm_get_admin(session, str(upcoming_work_shift.tg_id_admin))
+        text = await generation_text_shifts_workers(upcoming_work_shift)
+        await callback.message.answer(f"➡Предстоящие смены⬅\n"
+                                      f"Смену создал(а): {admin.name} {admin.surname}\n☎+7{admin.phone_number}\n"
+                                      f"{text}")
+    await callback.answer()
+
+
+# Отлавливает нажатие кнопки "Прошедшие". Выдает прошедшие рабочие смены.
+@admin_commands_router.callback_query(StateFilter(None), F.data.startswith("pastworkshifts_"))
+async def past_work_shifts(callback: types.CallbackQuery, session: AsyncSession):
+    for past_work_shift in await orm_get_past_work_shifts(session):
+        admin = await orm_get_admin(session, str(past_work_shift.tg_id_admin))
+        text = await generation_text_shifts_workers(past_work_shift)
+        await callback.message.answer(f"➡Прошедшие смены⬅\n"
+                                      f"Смену создал(а): {admin.name} {admin.surname}\n☎+7{admin.phone_number}\n"
+                                      f"{text}")
+    await callback.answer()
 
 
 # Отлавливает нажатие кнопки "Добавить смену". Входит в режим FSM, отправляет сообщение пользователю
