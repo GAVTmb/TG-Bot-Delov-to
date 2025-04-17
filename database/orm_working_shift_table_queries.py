@@ -1,4 +1,4 @@
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import WorkingShift
@@ -63,4 +63,9 @@ async def orm_get_working_shift(session: AsyncSession, working_shift_id: int):
     return result.scalar()
 
 
+# Удалить смену
+async def orm_delete_working_shift(session: AsyncSession, working_shift_id: int):
+    query = delete(WorkingShift).where(WorkingShift.id == working_shift_id)
+    await session.execute(query)
+    await session.commit()
 

@@ -21,7 +21,7 @@ from database.orm_admin_table_queries import orm_get_admin
 from database.orm_worker_table_queries import orm_update_worker_access, orm_get_worker, orm_get_all_workers
 from database.orm_working_shift_table_queries import (orm_add_working_shift, orm_update_working_shift,
                                                       orm_get_upcoming_working_shifts, orm_get_working_shift,
-                                                      orm_get_past_work_shifts)
+                                                      orm_get_past_work_shifts, orm_delete_working_shift)
 from database.orm_work_shift_worker_table_queries import orm_update_approval_admin, orm_get_all_work_shift_worker
 
 from additional_functions import sending_shifts_workers, generation_text_shifts_workers
@@ -113,10 +113,12 @@ async def reject_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncS
 # Отлавливает нажатие кнопки "✅Одобрить"
 @admin_commands_router.callback_query(StateFilter(None), F.data.startswith("allowshift_"))
 async def allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncSession):
+    message_text = callback.message.text
     working_shift_id = callback.data.split("_")[-2]
     tg_id_worker = callback.data.split("_")[-1]
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
     await orm_update_approval_admin(session, str(tg_id_worker), int(working_shift_id), True)
+    await callback.message.edit_text(f"{message_text}\n✅Одобрено!")
     await callback.answer()
     await bot.send_message(tg_id_worker,
                            f"Менеджер вас одобрил✅\n"
@@ -172,23 +174,44 @@ async def past_work_shifts(callback: types.CallbackQuery, session: AsyncSession)
     await callback.answer()
 
 
+# Отлавливает нажатие кнопки "Удалить смену". Выдает предстоящие рабочие смены.
+@admin_commands_router.callback_query(StateFilter(None), F.data.startswith("deleteshift_"))
+async def delete_work_shifts(callback: types.CallbackQuery, session: AsyncSession):
+    work_shift_id = int(callback.data.split("_")[-1])
+    await orm_delete_working_shift(session, work_shift_id)
+    await callback.message.edit_text(f"Смена удалена!")
+
+
+
 # Отлавливает нажатие кнопки "Посмотреть работников смены".
 @admin_commands_router.callback_query(StateFilter(None), F.data.startswith("shiftworkers_"))
 async def view_shift_workers(callback: types.CallbackQuery, session: AsyncSession):
     work_shift_id = int(callback.data.split("_")[-1])
-    tg_id_workers = await orm_get_all_work_shift_worker(session, int(work_shift_id))
+    tg_id_workers_list = await orm_get_all_work_shift_worker(session, int(work_shift_id))
     worker_shift = await orm_get_working_shift(session, work_shift_id)
-    text_worker_shift = await generation_text_shifts_workers(worker_shift)
-    text_worker_list = []
-    counter = 0
-    for tg_id_worker in tg_id_workers:
-        counter += 1
-        worker = await orm_get_worker(session, str(tg_id_worker))
-        text_worker = f"{counter}. {worker.name_worker} {worker.surname_worker}\n"
-        text_worker_list.append(text_worker)
-    await callback.message.edit_text(f"{text_worker_shift}\n\n"
-                                     f"Выходили на смену!\n"
-                                     f"{"".join(text_worker_list)}")
+    # text_worker_shift = await generation_text_shifts_workers(worker_shift)
+    message_text = callback.message.text
+    if tg_id_workers_list:
+        text_worker_list = []
+        counter = 0
+        ikb = None
+        if worker_shift.date_time_working_shift > datetime.datetime.now():
+            ikb = get_callback_buts(buts={
+                                          "Изменить смену": f"changeshift_{worker_shift.id}",
+                                          "Удалить смену": f"deleteshift_{worker_shift.id}",},
+                                          sizes=(2,))
+        for tg_id_worker in tg_id_workers_list:
+            counter += 1
+            worker = await orm_get_worker(session, str(tg_id_worker))
+            text_worker = f"{counter}. {worker.name_worker} {worker.surname_worker}\n"
+            text_worker_list.append(text_worker)
+        await callback.message.edit_text(f"{message_text}\n\n"
+                                         f"Выходили на смену!\n"
+                                         f"{"".join(text_worker_list)}",
+                                         reply_markup=ikb)
+    else:
+        await callback.message.edit_text(f"{message_text}\n\n"
+                                         f"В этой смене еще нет работников.")
     await callback.answer()
 
 
