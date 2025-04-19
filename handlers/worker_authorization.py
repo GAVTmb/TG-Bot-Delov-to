@@ -268,12 +268,13 @@ async def add_passport_photo_worker(message: types.Message, state: FSMContext, b
             if admin_list:
                 for tg_id_admin in admin_list:
                     await bot.send_photo(int(tg_id_admin), worker_data["passport_photo_worker"],
-                                         caption=f"Телегам id: {worker_data["tg_id_worker"]}\n"
-                                                 f"Имя: {worker_data["name_worker"]}\n"
-                                                 f"Фамилия: {worker_data["surname_worker"]}\n"
-                                                 f"Возраст: {worker_data["age_worker"]}\n"
-                                                 f"Опыт работы: {worker_data["work_experience"]}\n"
-                                                 f"Номер тел-а: +7{worker_data["phone_number_worker"]}",
+                                         caption=f"Анкета для приема на работу:\n"
+                                                 f"-Телегам id: {worker_data["tg_id_worker"]}\n"
+                                                 f"-Имя: {worker_data["name_worker"]}\n"
+                                                 f"-Фамилия: {worker_data["surname_worker"]}\n"
+                                                 f"-Возраст: {worker_data["age_worker"]}\n"
+                                                 f"-Опыт работы: {worker_data["work_experience"]}\n"
+                                                 f"-Номер тел-а: +7{worker_data["phone_number_worker"]}",
                                          reply_markup=get_callback_buts(buts={"✅Принять":
                                                                                   f"acceptworker_{worker_data["tg_id_worker"]}",
                                                                               "❌Отклонить":

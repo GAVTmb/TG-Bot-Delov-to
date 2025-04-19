@@ -24,8 +24,7 @@ from database.orm_working_shift_table_queries import (orm_add_working_shift, orm
                                                       orm_get_past_work_shifts, orm_delete_working_shift)
 from database.orm_work_shift_worker_table_queries import orm_update_approval_admin, orm_get_all_work_shift_worker
 
-from additional_functions import sending_shifts_workers, generation_text_shifts_workers
-
+from additional_functions import sending_new_shift_workers, generation_text_shifts_workers, sending_update_shift_workers
 
 admin_commands_router = Router()
 
@@ -53,35 +52,45 @@ async def view_data_admin(message: types.Message, session: AsyncSession):
                                    sizes=(1,))
     )
 
-# Отлавливает нажатие кнопки "Посмотреть работников"
+# Отлавливает нажатие кнопки "Посмотреть работников" НУЖНО ИЗМЕНИТЬ!!!!
 @admin_commands_router.message(F.text == "Посмотреть работников")
 async def view_data_worker(message: types.Message, session: AsyncSession):
-    print("view_data_worker")
     workers = await orm_get_all_workers(session)
     for worker in workers:
-        print(worker)
-        await message.answer(f"Телегам id: {worker.tg_id_worker}\n"
-                             f"Имя: {worker.name_worker}\n"
-                             f"Фамилия: {worker.surname_worker}\n"
-                             f"Возраст: {worker.age_worker}\n"
-                             f"Опыт работы: {worker.work_experience}\n"
+        await message.answer(f"{worker.name_worker} {worker.surname_worker}\n"
                              f"Номер тел-а: +7{worker.phone_number_worker}",
-                             reply_markup=get_callback_buts(buts={
-                                 "Заблокировать": f"blockworker_{str(worker.tg_id_worker)}",
-                                 "Разблокировать": f"unblockworker_{str(worker.tg_id_worker)}",},
-                                 sizes=(2,))
+                             reply_markup=get_callback_buts(buts={"Подробнее": f"detailed_{str(worker.tg_id_worker)}",},
+                                    sizes=(2,))
                              )
 
-# Отлавливает нажатие кнопки "➡Изменить мои данные⬅"
-@admin_commands_router.callback_query(StateFilter(None), F.data.startswith("changedataadmin_"))
-async def change_data_admin(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
-    tg_id_admin = callback.data.split("_")[-1]
-    admin = await orm_get_admin(session, str(tg_id_admin))
-    RegistrationAdmin.admin_data_for_change = admin
-    await state.set_state(RegistrationAdmin.name)
-    await callback.answer()
-    await callback.message.answer("Напиши свое имя.",
-                                  reply_markup=kb_admin.kb_cancel_back_skip_admin.as_markup(resize_keyboard=True))
+
+# Отлавливает нажатие кнопки "Подробнее"
+@admin_commands_router.callback_query(StateFilter(None), F.data.startswith("detailed_"))
+async def detailed_view_data_worker(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    tg_id_worker = callback.data.split("_")[-1]
+    worker = await orm_get_worker(session, str(tg_id_worker))
+    text_message = (f"Информация о работнике:\n"
+                    f"-Телегам id: {worker.tg_id_worker}\n"
+                    f"-Имя: {worker.name_worker}\n"
+                    f"-Фамилия: {worker.surname_worker}\n"
+                    f"-Возраст: {worker.age_worker}\n"
+                    f"-Опыт работы: {worker.work_experience}\n"
+                    f"-Номер тел-а: +7{worker.phone_number_worker}\n\n")
+    if worker.access_worker:
+        await callback.message.edit_text(f"{text_message}"
+                                         f"Работнику доступны смены.✅",
+                                         reply_markup=get_callback_buts(buts={
+                                             "Заблокировать": f"notacceptworker_{str(worker.tg_id_worker)}",},
+                                             sizes=(1,))
+                                         )
+    else:
+        await callback.message.edit_text(f"{text_message}"
+                                         f"Работник заблокирован, смены не доступны.❌",
+                                         reply_markup=get_callback_buts(buts={
+                                             "Разблокировать": f"acceptworker_{str(worker.tg_id_worker)}", },
+                                             sizes=(1,))
+                                         )
+
 
 
 # Отлавливает нажатие кнопки Принять!✅
@@ -90,11 +99,16 @@ async def accept_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncS
     tg_id_worker = callback.data.split("_")[-1]
     worker = await orm_get_worker(session, str(tg_id_worker))
     await orm_update_worker_access(session, str(tg_id_worker), True)
-    await bot.send_message(int(tg_id_worker), f"Ваша заявка подтверждена✅\nПоздравляем! Вам открыт доступ к сменам!",
+    await bot.send_message(int(tg_id_worker), f"Поздравляем! Вам открыт доступ к сменам!✅",
                            reply_markup=kb_worker.kb_start_worker.as_markup(resize_keyboard=True))
     await callback.answer()
-    await callback.message.answer(f"Заявка {worker.name_worker} {worker.surname_worker} принята✅"
-                                  f"\nДоступ к сменам открыт!")
+    await callback.message.edit_text(f"Работнику {worker.name_worker} {worker.surname_worker}\n"
+                                     f"Номер тел-а: +7{worker.phone_number_worker}"
+                                     f"\n\nОткрыт доступ к сменам!✅",
+                                     reply_markup=get_callback_buts(buts={
+                                         "Заблокировать": f"notacceptworker_{str(worker.tg_id_worker)}", },
+                                         sizes=(1,))
+                                     )
 
 
 # Отлавливает нажатие кнопки Отклонить!❌
@@ -103,11 +117,16 @@ async def reject_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncS
     tg_id_worker = callback.data.split("_")[-1]
     worker = await orm_get_worker(session, str(tg_id_worker))
     await orm_update_worker_access(session, str(tg_id_worker), False)
-    await bot.send_message(int(tg_id_worker), f"Ваша заявка отклонена❌\nОбратитесь к менеджеру",
+    await bot.send_message(int(tg_id_worker), f"Доступ к сменам закрыт❌\nОбратитесь к менеджеру",
                            reply_markup=kb_worker.kb_contact_manager_view_worker.as_markup(resize_keyboard=True))
     await callback.answer()
-    await callback.message.answer(f"Заявка {worker.name_worker} {worker.surname_worker} Отклонена❌"
-                                  f"\nДоступ к сменам закрыт!")
+    await callback.message.edit_text(f"Работнику {worker.name_worker} {worker.surname_worker}\n"
+                                     f"Номер тел-а: +7{worker.phone_number_worker}"
+                                     f"\n\nЗакрыт доступ к сменам!❌",
+                                     reply_markup=get_callback_buts(buts={
+                                         "Разблокировать": f"acceptworker_{str(worker.tg_id_worker)}", },
+                                         sizes=(1,))
+                                     )
 
 
 # Отлавливает нажатие кнопки "✅Одобрить"
@@ -133,11 +152,11 @@ async def not_allow_shift_worker(callback: types.CallbackQuery, bot: Bot, sessio
     working_shift_id = callback.data.split("_")[-2]
     tg_id_worker = callback.data.split("_")[-1]
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
-    text = await generation_text_shifts_workers(working_shift)
     await orm_update_approval_admin(session, str(tg_id_worker), int(working_shift_id), False)
+    await callback.message.edit_text(f"{callback.message.text}\n❌Отказано!")
     await callback.answer()
     await bot.send_message(tg_id_worker,
-                           f"❌Менеджер вам отказал❌\n{text}")
+                           f"❌Менеджер вам отказал❌\n{callback.message.text}")
 
 
 # Отлавливает нажатие кнопки "Предстоящие". Выдает предстоящие рабочие смены.
@@ -189,7 +208,6 @@ async def view_shift_workers(callback: types.CallbackQuery, session: AsyncSessio
     work_shift_id = int(callback.data.split("_")[-1])
     tg_id_workers_list = await orm_get_all_work_shift_worker(session, int(work_shift_id))
     worker_shift = await orm_get_working_shift(session, work_shift_id)
-    # text_worker_shift = await generation_text_shifts_workers(worker_shift)
     message_text = callback.message.text
     if tg_id_workers_list:
         text_worker_list = []
@@ -213,6 +231,30 @@ async def view_shift_workers(callback: types.CallbackQuery, session: AsyncSessio
         await callback.message.edit_text(f"{message_text}\n\n"
                                          f"В этой смене еще нет работников.")
     await callback.answer()
+
+
+# Отлавливает нажатие кнопки "➡Изменить мои данные⬅"
+@admin_commands_router.callback_query(StateFilter(None), F.data.startswith("changedataadmin_"))
+async def change_data_admin(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    tg_id_admin = callback.data.split("_")[-1]
+    admin = await orm_get_admin(session, str(tg_id_admin))
+    RegistrationAdmin.admin_data_for_change = admin
+    await state.set_state(RegistrationAdmin.name)
+    await callback.answer()
+    await callback.message.answer("Напиши свое имя.",
+                                  reply_markup=kb_admin.kb_cancel_back_skip_admin.as_markup(resize_keyboard=True))
+
+
+# Отлавливает нажатие кнопки "changeshift_"
+@admin_commands_router.callback_query(StateFilter(None), F.data.startswith("changeshift_"))
+async def change_shift(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    work_shift_id = callback.data.split("_")[-1]
+    work_shift = await orm_get_working_shift(session, int(work_shift_id))
+    AddWorkingShift.shift_for_working_change = work_shift
+    await state.set_state(AddWorkingShift.date_time_working_shift)
+    await callback.answer()
+    await callback.message.answer("Напиши дату 📆 и время⌚\nВ формате 01.01.25 10:00",
+                                  reply_markup=kb_admin.kb_cancel_back_skip_admin.as_markup(resize_keyboard=True))
 
 
 # Отлавливает нажатие кнопки "Добавить смену". Входит в режим FSM, отправляет сообщение пользователю
@@ -342,6 +384,7 @@ async def add_cost_work_admin(message: types.Message, state: FSMContext, session
         print(data)
 
         if AddWorkingShift.shift_for_working_change:
+            await sending_update_shift_workers(session, bot, AddWorkingShift.shift_for_working_change)
             await orm_update_working_shift(session, AddWorkingShift.shift_for_working_change.id, data)
             if admin.admin_access:
                 await message.answer("Смена изменена!✅",
@@ -351,7 +394,7 @@ async def add_cost_work_admin(message: types.Message, state: FSMContext, session
                                      reply_markup=kb_admin.start_kb_main_admin.as_markup(resize_keyboard=True))
         else:
             await orm_add_working_shift(session, data)
-            await sending_shifts_workers(session, bot)
+            await sending_new_shift_workers(session, bot)
             if admin.admin_access:
                 await message.answer("Смена добавлена!✅",
                                      reply_markup=kb_admin.start_kb_admin.as_markup(resize_keyboard=True))

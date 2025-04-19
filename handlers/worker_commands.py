@@ -13,7 +13,7 @@ from database.orm_worker_table_queries import orm_get_worker
 from database.orm_admin_table_queries import orm_get_all_admin, orm_get_admin
 from database.orm_working_shift_table_queries import orm_get_upcoming_working_shifts, orm_get_working_shift
 from database.orm_work_shift_worker_table_queries import orm_add_work_shift_worker, orm_get_work_shift_worker, \
-    orm_update_going_on_shift
+    orm_update_going_on_shift, orm_get_all_work_shift_worker
 
 from handlers.worker_authorization import RegistrationWorker
 
@@ -68,14 +68,22 @@ async def shifts_today(message: types.Message, session: AsyncSession):
     working_shifts = await orm_get_upcoming_working_shifts(session)
     if working_shifts:
         for working_shift in working_shifts:
+            work_shift_workers = await orm_get_all_work_shift_worker(session, working_shift.id)
             admin = await orm_get_admin(session, str(working_shift.tg_id_admin))
             text = await generation_text_shifts_workers(working_shift)
-            await message.answer(f"❗Предстояшие смены❗\n{text}\n"
-                                 f"Для уточнения деталей свяжитесь с менеджером!\n"
-                                 f"{admin.name} - ☎+7{admin.phone_number}",
-                                 reply_markup=get_callback_buts(buts={"✅Еду на смену": f"yes_{working_shift.id}",
-                                                                      "❌Не могу": f"no_{working_shift.id}"},
-                                                                sizes=(2, )))
+            if str(message.from_user.id) in work_shift_workers:
+                await message.answer(f"❗Предстояшие смены❗\n{text}\n"
+                                     f"Для уточнения деталей свяжитесь с менеджером!\n"
+                                     f"{admin.name} - ☎+7{admin.phone_number}\n\n"
+                                     f"Вы записаны на эту смену!"
+                                     )
+            else:
+                await message.answer(f"❗Предстояшие смены❗\n{text}\n"
+                                     f"Для уточнения деталей свяжитесь с менеджером!\n"
+                                     f"{admin.name} - ☎+7{admin.phone_number}",
+                                     reply_markup=get_callback_buts(buts={"✅Еду на смену": f"yes_{working_shift.id}",
+                                                                          "❌Не могу": f"no_{working_shift.id}"},
+                                                                    sizes=(2, )))
     else:
         await message.answer("Предстоящих смен еще нет.")
 

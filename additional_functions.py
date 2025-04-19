@@ -20,7 +20,7 @@ async def generation_text_shifts_workers(working_shift):
     return text
 
 
-async def sending_shifts_workers(session: AsyncSession, bot):
+async def sending_new_shift_workers(session: AsyncSession, bot):
     list_tg_id_workers = await orm_get_all_tg_id_workers(session)
     list_working_shift = await orm_get_all_working_shifts(session)
     working_shift = list_working_shift[-1]
@@ -38,5 +38,14 @@ async def sending_shifts_workers(session: AsyncSession, bot):
                                )
 
 
+async def sending_update_shift_workers(session: AsyncSession, bot, data):
+    admin = await orm_get_admin(session, str(data.tg_id_admin))
+    list_tg_id_workers = await orm_get_all_tg_id_workers(session)
+    text = await generation_text_shifts_workers(data)
 
+    for tg_id_worker in list_tg_id_workers:
+        await bot.send_message(int(tg_id_worker), f"❗❗❗ Смена была изменена ❗❗❗\n"
+                                                  f"{text}"
+                                                  f"Для уточнения деталей свяжитесь с менеджером!\n"
+                                                  f"{admin.name} - ☎+7{admin.phone_number}")
 
