@@ -13,12 +13,12 @@ from keyboards.inline_kb import get_callback_buts
 
 
 async def generation_text_shifts_workers(working_shift):
-    text = (f"Дата📆: {working_shift.date_time_working_shift.strftime("%d.%m.20%y")}\n"
-            f"Время начала⌚: {working_shift.date_time_working_shift.strftime("%H:%M")}\n"
-            f"Адрес🏠: {working_shift.address}\n"
-            f"Описание: {working_shift.description_working_shift}\n"
-            f"Нужно {working_shift.quantity_workers} чел.\n"
-            f"Оплата: {working_shift.cost_work}руб.")
+    text = (f"-Дата📆: {working_shift.date_time_working_shift.strftime("%d.%m.20%y")}\n"
+            f"-Время начала⌚: {working_shift.date_time_working_shift.strftime("%H:%M")}\n"
+            f"-Адрес🏠: {working_shift.address}\n"
+            f"-Описание: {working_shift.description_working_shift}\n"
+            f"-Нужно {working_shift.quantity_workers} чел.\n"
+            f"-Оплата: {working_shift.cost_work}руб.")
     return text
 
 
@@ -30,7 +30,7 @@ async def sending_new_shift_workers(session: AsyncSession, bot):
     text = await generation_text_shifts_workers(working_shift)
 
     for tg_id_worker in list_tg_id_workers:
-        await bot.send_message(int(tg_id_worker), f"❗❗❗ Новая смена ❗❗❗\n"
+        await bot.send_message(int(tg_id_worker), f"❗❗❗🆕 Новая смена 🆕❗❗❗\n"
                                                   f"{text}"
                                                   f"Для уточнения деталей свяжитесь с менеджером!\n"
                                                   f"{admin.name} - ☎+7{admin.phone_number}",

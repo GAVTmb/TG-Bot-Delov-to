@@ -1,13 +1,9 @@
-import os
-from dotenv import find_dotenv, load_dotenv
-load_dotenv(find_dotenv())
 
 import datetime
 
 from aiogram import F, types, Router, Bot
-from aiogram.filters import Command, StateFilter, or_f
+from aiogram.filters import StateFilter, or_f
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,17 +24,17 @@ from additional_functions import sending_new_shift_workers, generation_text_shif
 admin_commands_router = Router()
 
 
-# Отлавливает нажатие кнопки "Посмотреть смены"
-@admin_commands_router.message(F.text == "Посмотреть смены")
+# Отлавливает нажатие кнопки "Посмотреть смены🛠"
+@admin_commands_router.message(F.text == "Посмотреть смены🛠")
 async def show_all_working_change_admin(message: types.Message, session: AsyncSession, bot: Bot):
     await message.answer(f"Какие смены вам показать?",
-                         reply_markup=get_callback_buts(buts={"Предстоящие": f"upcomingworkshifts_",
-                                                              "Прошедшие": f"pastworkshifts_",},
+                         reply_markup=get_callback_buts(buts={"➡Предстоящие": f"upcomingworkshifts_",
+                                                              "Прошедшие⬅": f"pastworkshifts_",},
                                                         sizes=(2,))
                          )
 
-# Отлавливает нажатие кнопки "➡Посмотреть мои данные"
-@admin_commands_router.message(F.text == "➡Посмотреть мои данные")
+# Отлавливает нажатие кнопки "🔎Посмотреть мои данные"
+@admin_commands_router.message(F.text == "🔎Посмотреть мои данные")
 async def view_data_admin(message: types.Message, session: AsyncSession):
     admin = await orm_get_admin(session, str(message.from_user.id))
     await message.answer(f"❗ Ваши данные ❗\n"
@@ -47,18 +43,18 @@ async def view_data_admin(message: types.Message, session: AsyncSession):
                          f"Фамилия: {admin.surname}\n"
                          f"Номер тел-а: +7{admin.phone_number}",
                          reply_markup=get_callback_buts(buts={
-                             "➡Изменить мои данные⬅": f"changedataadmin_{str(message.from_user.id)}",},
+                             "Изменить мои данные🔄": f"changedataadmin_{str(message.from_user.id)}",},
                                    sizes=(1,))
     )
 
-# Отлавливает нажатие кнопки "Посмотреть работников"
-@admin_commands_router.message(F.text == "Посмотреть работников")
+# Отлавливает нажатие кнопки "Посмотреть работников‍👷‍♂️"
+@admin_commands_router.message(F.text == "Посмотреть работников‍👷‍♂️")
 async def view_data_worker(message: types.Message, session: AsyncSession):
     workers = await orm_get_all_workers(session)
     for worker in workers:
         await message.answer(f"{worker.name_worker} {worker.surname_worker}\n"
                              f"Номер тел-а: +7{worker.phone_number_worker}",
-                             reply_markup=get_callback_buts(buts={"Подробнее": f"detailed_{str(worker.tg_id_worker)}",},
+                             reply_markup=get_callback_buts(buts={"Подробнее🕵️‍♂️": f"detailed_{str(worker.tg_id_worker)}",},
                                     sizes=(2,))
                              )
 
@@ -79,14 +75,14 @@ async def detailed_view_data_worker(callback: types.CallbackQuery, session: Asyn
         await callback.message.edit_text(f"{text_message}"
                                          f"Работнику доступны смены.✅",
                                          reply_markup=get_callback_buts(buts={
-                                             "Заблокировать": f"notacceptworker_{str(worker.tg_id_worker)}",},
+                                             "Заблокировать❌": f"notacceptworker_{str(worker.tg_id_worker)}",},
                                              sizes=(1,))
                                          )
     else:
         await callback.message.edit_text(f"{text_message}"
                                          f"Работник заблокирован, смены не доступны.❌",
                                          reply_markup=get_callback_buts(buts={
-                                             "Разблокировать": f"acceptworker_{str(worker.tg_id_worker)}", },
+                                             "Разблокировать✅": f"acceptworker_{str(worker.tg_id_worker)}", },
                                              sizes=(1,))
                                          )
 
@@ -105,7 +101,7 @@ async def accept_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncS
                                      f"Номер тел-а: +7{worker.phone_number_worker}"
                                      f"\n\nОткрыт доступ к сменам!✅",
                                      reply_markup=get_callback_buts(buts={
-                                         "Заблокировать": f"notacceptworker_{str(worker.tg_id_worker)}", },
+                                         "Заблокировать❌": f"notacceptworker_{str(worker.tg_id_worker)}", },
                                          sizes=(1,))
                                      )
 
@@ -123,7 +119,7 @@ async def reject_worker(callback: types.CallbackQuery, bot: Bot, session: AsyncS
                                      f"Номер тел-а: +7{worker.phone_number_worker}"
                                      f"\n\nЗакрыт доступ к сменам!❌",
                                      reply_markup=get_callback_buts(buts={
-                                         "Разблокировать": f"acceptworker_{str(worker.tg_id_worker)}", },
+                                         "Разблокировать✅": f"acceptworker_{str(worker.tg_id_worker)}", },
                                          sizes=(1,))
                                      )
 
@@ -169,13 +165,13 @@ async def upcoming_work_shifts(callback: types.CallbackQuery, session: AsyncSess
     for upcoming_work_shift in await orm_get_upcoming_working_shifts(session):
         admin = await orm_get_admin(session, str(upcoming_work_shift.tg_id_admin))
         text = await generation_text_shifts_workers(upcoming_work_shift)
-        await callback.message.answer(f"➡Предстоящие смены⬅\n"
+        await callback.message.answer(f"➡Предстоящие смены\n"
                                       f"Смену создал(а): {admin.name} {admin.surname}\n☎+7{admin.phone_number}\n"
                                       f"{text}",
                                       reply_markup=get_callback_buts(buts={
-                                          "Изменить смену": f"changeshift_{upcoming_work_shift.id}",
-                                          "Удалить смену": f"deleteshift_{upcoming_work_shift.id}",
-                                          "Посмотреть работников смены": f"shiftworkers_{upcoming_work_shift.id}",},
+                                          "Изменить смену🔄": f"changeshift_{upcoming_work_shift.id}",
+                                          "Удалить смену🗑": f"deleteshift_{upcoming_work_shift.id}",
+                                          "Посмотреть работников смены👷‍♂️": f"shiftworkers_{upcoming_work_shift.id}",},
                                           sizes=(2, 1))
                                       )
     await callback.answer()
@@ -187,11 +183,11 @@ async def past_work_shifts(callback: types.CallbackQuery, session: AsyncSession)
     for past_work_shift in await orm_get_past_work_shifts(session):
         admin = await orm_get_admin(session, str(past_work_shift.tg_id_admin))
         text = await generation_text_shifts_workers(past_work_shift)
-        await callback.message.answer(f"➡Прошедшие смены⬅\n"
+        await callback.message.answer(f"Прошедшие смены⬅\n"
                                       f"Смену создал(а): {admin.name} {admin.surname}\n☎+7{admin.phone_number}\n"
                                       f"{text}",
                                       reply_markup=get_callback_buts(buts={
-                                          "Посмотреть работников смены": f"shiftworkers_{past_work_shift.id}", },
+                                          "Посмотреть работников смены👷‍♂️": f"shiftworkers_{past_work_shift.id}", },
                                           sizes=(1,))
                                       )
     await callback.answer()
@@ -199,10 +195,14 @@ async def past_work_shifts(callback: types.CallbackQuery, session: AsyncSession)
 
 # Отлавливает нажатие кнопки "Удалить смену".
 @admin_commands_router.callback_query(StateFilter(None), F.data.startswith("deleteshift_"))
-async def delete_work_shifts(callback: types.CallbackQuery, session: AsyncSession):
+async def delete_work_shifts(callback: types.CallbackQuery, session: AsyncSession, bot: Bot):
     work_shift_id = int(callback.data.split("_")[-1])
+    tg_id_workers_list = await orm_get_all_work_shift_worker(session, int(work_shift_id))
+    await callback.answer()
+    for tg_id_workers in tg_id_workers_list:
+        await bot.send_message(int(tg_id_workers), f"🗑❗Эта смена была удалена❗🗑\n\n{callback.message.text}")
     await orm_delete_working_shift(session, work_shift_id)
-    await callback.message.edit_text(f"Смена удалена!")
+    await callback.message.edit_text(f"Смена удалена!🗑")
 
 
 
@@ -219,16 +219,17 @@ async def view_shift_workers(callback: types.CallbackQuery, session: AsyncSessio
         ikb = None
         if worker_shift.date_time_working_shift > datetime.datetime.now():
             ikb = get_callback_buts(buts={
-                                          "Изменить смену": f"changeshift_{worker_shift.id}",
-                                          "Удалить смену": f"deleteshift_{worker_shift.id}",},
+                                          "Изменить смену🔄": f"changeshift_{worker_shift.id}",
+                                          "Удалить смену🗑": f"deleteshift_{worker_shift.id}",},
                                           sizes=(2,))
         for tg_id_worker in tg_id_workers_list:
             counter += 1
             worker = await orm_get_worker(session, str(tg_id_worker))
+            print(worker)
             text_worker = f"{counter}. {worker.name_worker} {worker.surname_worker}\n"
             text_worker_list.append(text_worker)
         await callback.message.edit_text(f"{message_text}\n\n"
-                                         f"Выходили на смену!\n"
+                                         f"Работники смены!\n"
                                          f"{"".join(text_worker_list)}",
                                          reply_markup=ikb)
     else:
@@ -331,9 +332,9 @@ async def new_password(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-# Отлавливает нажатие кнопки "Добавить смену". Входит в режим FSM, отправляет сообщение пользователю
+# Отлавливает нажатие кнопки "Добавить смену🆕". Входит в режим FSM, отправляет сообщение пользователю
 # "Напиши дату". Становится в состояние "date_time_working_shift"
-@admin_commands_router.message(StateFilter(None), F.text == "Добавить смену💬")
+@admin_commands_router.message(StateFilter(None), F.text == "Добавить смену🆕")
 async def start_fsm_admin(message: types.Message, state: FSMContext):
     await message.answer("Давай добавим смену!!!\nНапиши дату 📆 и время⌚\nВ формате 01.01.25 10:00",
                          reply_markup=kb_admin.kb_cancel_admin.as_markup(resize_keyboard=True))

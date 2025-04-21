@@ -6,10 +6,10 @@ del_kb = ReplyKeyboardRemove()
 
 start_kb_admin = ReplyKeyboardBuilder()
 start_kb_admin.add(
-    KeyboardButton(text="Добавить смену💬"),
-    KeyboardButton(text="Посмотреть смены"),
-    KeyboardButton(text="➡Посмотреть мои данные"),
-    KeyboardButton(text="Посмотреть работников"),
+    KeyboardButton(text="Добавить смену🆕"),
+    KeyboardButton(text="Посмотреть смены🛠"),
+    KeyboardButton(text="🔎Посмотреть мои данные"),
+    KeyboardButton(text="Посмотреть работников‍👷‍♂️"),
     KeyboardButton(text="Выход"),
 )
 start_kb_admin.adjust(2, 2, 1)

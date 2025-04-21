@@ -136,7 +136,7 @@ async def add_surname_worker(message: types.Message, state: FSMContext):
     try:
         if len(message.text) < 2:
             raise ValueError
-        if message.text == "Пропустить_":
+        if message.text == "Пропустить":
             await state.update_data(surname_worker=RegistrationWorker.worker_data_for_change.surname_worker)
             await message.answer("Напишите ваш возраст.",
                                  reply_markup=kb_worker.kb_cancel_back_skip_worker.as_markup(resize_keyboard=True))
@@ -163,7 +163,7 @@ async def add_age_worker(message: types.Message, state: FSMContext):
     try:
         if 16 > int(message.text) or int(message.text) > 80:
             raise ValueError
-        if message.text == "Пропустить_":
+        if message.text == "Пропустить":
             await state.update_data(age_worker=int(RegistrationWorker.worker_data_for_change.age_worker))
             await message.answer("Напишите ваш опыт работы.",
                                  reply_markup=kb_worker.kb_cancel_back_skip_worker.as_markup(resize_keyboard=True))
@@ -190,7 +190,7 @@ async def add_work_experience(message: types.Message, state: FSMContext):
     try:
         if len(message.text) < 2:
             raise ValueError
-        if message.text == "Пропустить_":
+        if message.text == "Пропустить":
             await state.update_data(work_experience=str(RegistrationWorker.worker_data_for_change.work_experience))
             await message.answer("Напишите ваш номер телефона в формате 89001112233.",
                                  reply_markup=kb_worker.kb_cancel_back_skip_worker.as_markup(resize_keyboard=True))
@@ -215,7 +215,7 @@ async def add_work_experience(message: types.Message, state: FSMContext):
 @worker_authorization_router.message(StateFilter(RegistrationWorker.phone_number_worker))
 async def add_phone_number_worker(message: types.Message, state: FSMContext):
     try:
-        if message.text == "Пропустить_":
+        if message.text == "Пропустить":
             await state.update_data(phone_number_worker=RegistrationWorker.worker_data_for_change.phone_number_worker)
             await message.answer("Пришлите фото паспорта.",
                                  reply_markup=kb_worker.kb_cancel_back_skip_worker.as_markup(resize_keyboard=True))
@@ -246,7 +246,7 @@ async def add_phone_number_worker(message: types.Message, state: FSMContext):
 async def add_passport_photo_worker(message: types.Message, state: FSMContext, bot: Bot, session: AsyncSession):
     print(f"add_passport_photo_worker - {message.text}")
     try:
-        if message.text == "Пропустить_":
+        if message.text == "Пропустить":
             await state.update_data(passport_photo_worker=RegistrationWorker.worker_data_for_change.passport_photo_worker)
             await state.update_data(access_worker=RegistrationWorker.worker_data_for_change.access_worker)
         else:

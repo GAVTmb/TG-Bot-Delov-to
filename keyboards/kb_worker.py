@@ -26,7 +26,7 @@ kb_cancel_back_worker.row(KeyboardButton(text="Назад"),)
 
 kb_cancel_back_skip_worker = ReplyKeyboardBuilder()
 kb_cancel_back_skip_worker.attach(kb_cancel_back_worker)
-kb_cancel_back_skip_worker.row(KeyboardButton(text="Пропустить_"),)
+kb_cancel_back_skip_worker.row(KeyboardButton(text="Пропустить"),)
 
 
 kb_contact_manager_view_worker = ReplyKeyboardBuilder()
