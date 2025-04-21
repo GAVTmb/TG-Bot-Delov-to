@@ -54,6 +54,10 @@ class RegistrationAdmin(StatesGroup):
     }
 
 
+class ChangePassword(StatesGroup):
+    new_password = State()
+
+
 @admin_login_router.message(StateFilter(None), Command("admin"))
 async def admin_login(message: types.Message, state: FSMContext, session: AsyncSession):
     admin = await orm_get_admin(session, str(message.from_user.id))

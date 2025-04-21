@@ -14,10 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from keyboards import kb_admin, kb_worker
 from keyboards.inline_kb import get_callback_buts
 
-from handlers.admin_authorization import RegistrationAdmin, AddWorkingShift
+from handlers.admin_authorization import RegistrationAdmin, AddWorkingShift, ChangePassword, ADMIN_PASSWORD
 
-
-from database.orm_admin_table_queries import orm_get_admin
+from database.orm_admin_table_queries import orm_get_admin, orm_get_all_admin, orm_update_admin_access
 from database.orm_worker_table_queries import orm_update_worker_access, orm_get_worker, orm_get_all_workers
 from database.orm_working_shift_table_queries import (orm_add_working_shift, orm_update_working_shift,
                                                       orm_get_upcoming_working_shifts, orm_get_working_shift,
@@ -52,7 +51,7 @@ async def view_data_admin(message: types.Message, session: AsyncSession):
                                    sizes=(1,))
     )
 
-# Отлавливает нажатие кнопки "Посмотреть работников" НУЖНО ИЗМЕНИТЬ!!!!
+# Отлавливает нажатие кнопки "Посмотреть работников"
 @admin_commands_router.message(F.text == "Посмотреть работников")
 async def view_data_worker(message: types.Message, session: AsyncSession):
     workers = await orm_get_all_workers(session)
@@ -136,14 +135,19 @@ async def allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: A
     working_shift_id = callback.data.split("_")[-2]
     tg_id_worker = callback.data.split("_")[-1]
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
-    await orm_update_approval_admin(session, str(tg_id_worker), int(working_shift_id), True)
-    await callback.message.edit_text(f"{message_text}\n✅Одобрено!")
+    work_shift_workers = await orm_get_all_work_shift_worker(session, working_shift.id)
+    if len(work_shift_workers) < working_shift.quantity_workers:
+        await orm_update_approval_admin(session, str(tg_id_worker), int(working_shift_id), True)
+        await callback.message.edit_text(f"{message_text}\n✅Одобрено!")
+        await bot.send_message(tg_id_worker,
+                               f"Менеджер вас одобрил✅\n"
+                                f"Ждём вас {working_shift.date_time_working_shift.strftime("%d.%m.20%y")} "
+                                f"в {working_shift.date_time_working_shift.strftime("%H:%M")}\n"
+                                f"По адресу {working_shift.address}")
+    else:
+        await callback.message.edit_text(f"{callback.message.text}\n\n"
+                                         f"❗Работники в эту смену уже набраны.❗")
     await callback.answer()
-    await bot.send_message(tg_id_worker,
-                           f"Менеджер вас одобрил✅\n"
-                            f"Ждём вас {working_shift.date_time_working_shift.strftime("%d.%m.20%y")} "
-                            f"в {working_shift.date_time_working_shift.strftime("%H:%M")}\n"
-                            f"По адресу {working_shift.address}")
 
 
 # Отлавливает нажатие кнопки "❌Отказать"
@@ -193,7 +197,7 @@ async def past_work_shifts(callback: types.CallbackQuery, session: AsyncSession)
     await callback.answer()
 
 
-# Отлавливает нажатие кнопки "Удалить смену". Выдает предстоящие рабочие смены.
+# Отлавливает нажатие кнопки "Удалить смену".
 @admin_commands_router.callback_query(StateFilter(None), F.data.startswith("deleteshift_"))
 async def delete_work_shifts(callback: types.CallbackQuery, session: AsyncSession):
     work_shift_id = int(callback.data.split("_")[-1])
@@ -255,6 +259,76 @@ async def change_shift(callback: types.CallbackQuery, session: AsyncSession, sta
     await callback.answer()
     await callback.message.answer("Напиши дату 📆 и время⌚\nВ формате 01.01.25 10:00",
                                   reply_markup=kb_admin.kb_cancel_back_skip_admin.as_markup(resize_keyboard=True))
+
+
+# Отлавливает нажатие кнопки "Посмотреть администраторов".
+@admin_commands_router.message(F.text == "Посмотреть адин-в")
+async def view_admins(message: types.Message, session: AsyncSession):
+    for admin in await orm_get_all_admin(session):
+        print(f"{admin.surname} {admin.name}\n т.{admin.phone_number}")
+        if admin.admin_access:
+            await message.answer(f"{admin.name} {admin.surname}\nтел: ☎+7{admin.phone_number}\nДоступ разрешен!✅",
+                                 reply_markup=get_callback_buts(buts={
+                                     "Запретить доступ": f"block_{admin.tg_id_admin}",
+                                 }, sizes=(1,))
+                                 )
+        elif not admin.admin_access:
+            await message.answer(f"{admin.name} {admin.surname}\nтел: ☎+7{admin.phone_number}\nДоступ запрещен!❌",
+                                 reply_markup=get_callback_buts(buts={
+                                     "Разрешить доступ": f"unblock_{admin.tg_id_admin}",
+                                 }, sizes=(1,))
+                                 )
+
+
+# Отлавливает нажатие кнопки "Запретить доступ".
+@admin_commands_router.callback_query(F.data.startswith("block_"))
+async def block_admin (callback: types.CallbackQuery, session: AsyncSession, bot: Bot):
+    tg_id_admin = callback.data.split("_")[-1]
+    admin_data = await orm_get_admin(session, str(tg_id_admin))
+    data = False
+    await orm_update_admin_access(session, str(tg_id_admin), data)
+    await callback.answer()
+    await bot.send_message(tg_id_admin, f"Вам запретили доступ!",
+                           reply_markup=kb_admin.del_kb)
+    await callback.message.edit_text(f"{admin_data.name} {admin_data.surname}\n"
+                                     f"тел: ☎+7{admin_data.phone_number}\nДоступ запрещен!❌",
+                                     reply_markup=kb_admin.start_kb_main_admin.as_markup(resize_keyboard=True))
+
+
+# Отлавливает нажатие кнопки "Разрешить доступ".
+@admin_commands_router.callback_query(F.data.startswith("unblock_"))
+async def unblock_admin (callback: types.CallbackQuery, session: AsyncSession, bot: Bot):
+    tg_id_admin = callback.data.split("_")[-1]
+    admin_data = await orm_get_admin(session, str(tg_id_admin))
+    data = True
+    await orm_update_admin_access(session, str(tg_id_admin), data)
+    await callback.answer()
+    await bot.send_message(tg_id_admin, f"Вам разрешили доступ!",
+                           reply_markup=kb_admin.start_kb_admin.as_markup(resize_keyboard=True))
+    await callback.message.edit_text(f"{admin_data.name} {admin_data.surname}\n"
+                                     f"тел: ☎+7{admin_data.phone_number}\nДоступ разрешен!✅",
+                                     reply_markup=kb_admin.start_kb_main_admin.as_markup(resize_keyboard=True))
+
+
+# Отлавливает нажатие кнопки "Изменить пароль". Входит в режим FSM, отправляет сообщение пользователю
+# "Напишите новый пароль!". Становится в состояние "new_password"
+@admin_commands_router.message(StateFilter(None), F.text == "Изменить пароль")
+async def change_password(message: types.Message, state: FSMContext):
+    await message.answer("Напишите новый пароль!",
+                         reply_markup=kb_admin.kb_cancel_admin.as_markup(resize_keyboard=True))
+    await state.set_state(ChangePassword.new_password)
+
+
+# Отлавливает сообщение написанное в состоянии "new_password". Изменяет пароль на новый, выходит из режима FSM.
+# Отправляет сообщение об успешной замене и клавиатуру главного админ-а.
+@admin_commands_router.message(StateFilter(ChangePassword.new_password))
+async def new_password(message: types.Message, state: FSMContext):
+    new_pass = message.text
+    ADMIN_PASSWORD[0] = str(new_pass)
+    print(f"Новый вароль - {ADMIN_PASSWORD}")
+    await message.answer(f"Пароль успешно изменен!",
+                         reply_markup=kb_admin.start_kb_main_admin.as_markup(resize_keyboard=True))
+    await state.clear()
 
 
 # Отлавливает нажатие кнопки "Добавить смену". Входит в режим FSM, отправляет сообщение пользователю

@@ -16,6 +16,9 @@ from handlers.worker_authorization import worker_authorization_router
 from handlers.worker_commands import worker_commands_router
 
 from middlewares.db import DataBaseSession
+from sqlalchemy.ext.asyncio import AsyncSession
+
+import additional_functions
 
 
 bot = Bot(token=os.getenv('TOKEN'))
@@ -28,14 +31,14 @@ dp.include_router(worker_commands_router)
 
 
 async def main():
-    # scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
+    scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
     # scheduler.add_job(additional_functions.mailing_before_the_event,
     #                   trigger="cron", hour="10", minute="00", kwargs={"bot": bot})
     # scheduler.add_job(additional_functions.mailing_after_the_event,
     #                   trigger="cron", hour="20", minute="00", kwargs={"bot": bot})
-    # scheduler.add_job(additional_functions.mailing_after_the_event, trigger="interval", seconds=30,
-    #                   kwargs={"bot": bot})
-    # scheduler.start()
+    scheduler.add_job(additional_functions.sending_reminders_about_work_shifts, trigger="interval", seconds=1800,
+                      kwargs={"bot": bot})
+    scheduler.start()
     # await drop_db()
     await create_db()
     dp.update.outer_middleware(DataBaseSession(session_pool=session_maker))

@@ -1,12 +1,14 @@
 from aiogram import Bot, types
-from pyexpat.errors import messages
 import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from database.engine import engine
 from database.orm_admin_table_queries import orm_get_admin
+from database.orm_sending_reminders_about_work_shifts_queries import orm_get_upcoming_working_shifts_for_sending, \
+    orm_get_all_work_shift_worker_for_sending
 from database.orm_worker_table_queries import orm_get_all_tg_id_workers
-from database.orm_working_shift_table_queries import orm_get_all_working_shifts
+from database.orm_working_shift_table_queries import orm_get_all_working_shifts, orm_get_upcoming_working_shifts
 from keyboards.inline_kb import get_callback_buts
 
 
@@ -48,4 +50,15 @@ async def sending_update_shift_workers(session: AsyncSession, bot, data):
                                                   f"{text}"
                                                   f"Для уточнения деталей свяжитесь с менеджером!\n"
                                                   f"{admin.name} - ☎+7{admin.phone_number}")
+
+
+async def sending_reminders_about_work_shifts(bot: Bot):
+    upcoming_working_shifts = await orm_get_upcoming_working_shifts_for_sending()
+    for upcoming_working_shift in upcoming_working_shifts:
+        text_message = await generation_text_shifts_workers(upcoming_working_shift)
+        for tg_id_worker in await orm_get_all_work_shift_worker_for_sending(int(upcoming_working_shift.id)):
+            await bot.send_message(int(tg_id_worker), f"❗Напоминаем вы записаны на смену❗\n\n"
+                                                      f"{text_message}\n\n❗Время начала➡ "
+                                                      f"{upcoming_working_shift.date_time_working_shift.strftime("%H:%M")}❗")
+
 
