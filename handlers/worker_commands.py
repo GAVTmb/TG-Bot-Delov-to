@@ -13,7 +13,7 @@ from database.orm_worker_table_queries import orm_get_worker
 from database.orm_admin_table_queries import orm_get_all_admin, orm_get_admin
 from database.orm_working_shift_table_queries import orm_get_upcoming_working_shifts, orm_get_working_shift
 from database.orm_work_shift_worker_table_queries import orm_add_work_shift_worker, orm_get_work_shift_worker, \
-    orm_update_going_on_shift, orm_get_all_work_shift_worker
+     orm_get_all_work_shift_worker, orm_update_going_on_shift_approval_admin
 
 from handlers.worker_authorization import RegistrationWorker
 
@@ -75,7 +75,9 @@ async def shifts_today(message: types.Message, session: AsyncSession):
                 await message.answer(f"❗Предстояшие смены❗\n{text}\n"
                                      f"Для уточнения деталей свяжитесь с менеджером!\n"
                                      f"{admin.name} - ☎+7{admin.phone_number}\n\n"
-                                     f"Вы записаны на эту смену!"
+                                     f"Вы записаны на эту смену!",
+                                     reply_markup=get_callback_buts(buts={"❌Не могу": f"no_{working_shift.id}"},
+                                                                    sizes=(1,))
                                      )
             else:
                 await message.answer(f"❗Предстояшие смены❗\n{text}\n"
@@ -107,7 +109,8 @@ async def going_on_shift(callback: types.CallbackQuery, session: AsyncSession, b
                 if work_shift_worker.going_on_shift:
                     await callback.message.answer("Вы уже записаны на эту смену!")
                 else:
-                    await orm_update_going_on_shift(session, str(callback.from_user.id), int(working_shift_id), True)
+                    await orm_update_going_on_shift_approval_admin(session, str(callback.from_user.id),
+                                                                   int(working_shift_id), True, None)
                     await callback.message.edit_text(f"{callback.message.text}\n\n"
                                                      f"Заявка отправлена, ожидайте ответа от менеджера.")
                     await bot.send_message(working_shift.tg_id_admin, message_text,
@@ -141,17 +144,27 @@ async def going_on_shift(callback: types.CallbackQuery, session: AsyncSession, b
 async def going_on_shift(callback: types.CallbackQuery, session: AsyncSession, bot: Bot):
     working_shift_id = callback.data.split("_")[-1]
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
+    work_shift_worker = await orm_get_work_shift_worker(session, str(callback.from_user.id), int(working_shift_id))
     if working_shift:
+        if work_shift_worker:
+            await orm_update_going_on_shift_approval_admin(session, str(callback.from_user.id), int(working_shift_id),
+                                                           False, None)
+        else:
+            await orm_add_work_shift_worker(session, int(working_shift_id), str(callback.from_user.id),
+                                            False, None)
         worker = await orm_get_worker(session, str(callback.from_user.id))
-        await orm_add_work_shift_worker(session, int(working_shift_id), str(callback.from_user.id),
-                                        False, None)
+        await callback.message.edit_text(f"{callback.message.text}",
+                                         reply_markup=get_callback_buts(
+                                             buts={"✅Еду на смену": f"yes_{working_shift.id}",},
+                                             sizes=(2,))
+                                         )
         await bot.send_message(working_shift.tg_id_admin,
                                f"➡{worker.name_worker} {worker.surname_worker}⬅\n☎+7{worker.phone_number_worker}\n"
                                f"Не готов выйти на смену!\n\n"
-                               f"Дата📆: {working_shift.date_time_working_shift.strftime("%d.%m.20%y")}\n"
-                               f"Время начала⌚: {working_shift.date_time_working_shift.strftime("%H:%M")}\n"
-                               f"Адрес🏠: {working_shift.address}\n"
-                               f"{working_shift.description_working_shift}\n")
+                               f"-Дата📆: {working_shift.date_time_working_shift.strftime("%d.%m.20%y")}\n"
+                               f"-Время начала⌚: {working_shift.date_time_working_shift.strftime("%H:%M")}\n"
+                               f"-Адрес🏠: {working_shift.address}\n"
+                               f"-Описание: {working_shift.description_working_shift}\n")
     else:
         await callback.message.edit_text(f"🗑❗Эта смена была удалена❗🗑\n\n{callback.message.text}")
     await callback.answer()

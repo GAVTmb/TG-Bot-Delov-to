@@ -31,7 +31,7 @@ async def sending_new_shift_workers(session: AsyncSession, bot):
 
     for tg_id_worker in list_tg_id_workers:
         await bot.send_message(int(tg_id_worker), f"❗❗❗🆕 Новая смена 🆕❗❗❗\n"
-                                                  f"{text}"
+                                                  f"{text}\n\n"
                                                   f"Для уточнения деталей свяжитесь с менеджером!\n"
                                                   f"{admin.name} - ☎+7{admin.phone_number}",
                                reply_markup=get_callback_buts(buts={"✅Еду на смену": f"yes_{working_shift.id}",
@@ -47,7 +47,7 @@ async def sending_update_shift_workers(session: AsyncSession, bot, data):
 
     for tg_id_worker in list_tg_id_workers:
         await bot.send_message(int(tg_id_worker), f"❗❗❗ Смена была изменена ❗❗❗\n"
-                                                  f"{text}"
+                                                  f"{text}\n\n"
                                                   f"Для уточнения деталей свяжитесь с менеджером!\n"
                                                   f"{admin.name} - ☎+7{admin.phone_number}")
 

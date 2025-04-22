@@ -17,7 +17,7 @@ from database.orm_worker_table_queries import orm_update_worker_access, orm_get_
 from database.orm_working_shift_table_queries import (orm_add_working_shift, orm_update_working_shift,
                                                       orm_get_upcoming_working_shifts, orm_get_working_shift,
                                                       orm_get_past_work_shifts, orm_delete_working_shift)
-from database.orm_work_shift_worker_table_queries import orm_update_approval_admin, orm_get_all_work_shift_worker
+from database.orm_work_shift_worker_table_queries import orm_get_all_work_shift_worker, orm_update_going_on_shift_approval_admin
 
 from additional_functions import sending_new_shift_workers, generation_text_shifts_workers, sending_update_shift_workers
 
@@ -133,7 +133,8 @@ async def allow_shift_worker(callback: types.CallbackQuery, bot: Bot, session: A
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
     work_shift_workers = await orm_get_all_work_shift_worker(session, working_shift.id)
     if len(work_shift_workers) < working_shift.quantity_workers:
-        await orm_update_approval_admin(session, str(tg_id_worker), int(working_shift_id), True)
+        await orm_update_going_on_shift_approval_admin(session, str(tg_id_worker), int(working_shift_id),
+                                                       True, True)
         await callback.message.edit_text(f"{message_text}\n✅Одобрено!")
         await bot.send_message(tg_id_worker,
                                f"Менеджер вас одобрил✅\n"
@@ -152,7 +153,8 @@ async def not_allow_shift_worker(callback: types.CallbackQuery, bot: Bot, sessio
     working_shift_id = callback.data.split("_")[-2]
     tg_id_worker = callback.data.split("_")[-1]
     working_shift = await orm_get_working_shift(session, int(working_shift_id))
-    await orm_update_approval_admin(session, str(tg_id_worker), int(working_shift_id), False)
+    await orm_update_going_on_shift_approval_admin(session, str(tg_id_worker), int(working_shift_id),
+                                                   True, False)
     await callback.message.edit_text(f"{callback.message.text}\n❌Отказано!")
     await callback.answer()
     await bot.send_message(tg_id_worker,
