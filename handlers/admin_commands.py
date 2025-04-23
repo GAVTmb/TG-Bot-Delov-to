@@ -164,18 +164,22 @@ async def not_allow_shift_worker(callback: types.CallbackQuery, bot: Bot, sessio
 # Отлавливает нажатие кнопки "Предстоящие". Выдает предстоящие рабочие смены.
 @admin_commands_router.callback_query(StateFilter(None), F.data.startswith("upcomingworkshifts_"))
 async def upcoming_work_shifts(callback: types.CallbackQuery, session: AsyncSession):
-    for upcoming_work_shift in await orm_get_upcoming_working_shifts(session):
-        admin = await orm_get_admin(session, str(upcoming_work_shift.tg_id_admin))
-        text = await generation_text_shifts_workers(upcoming_work_shift)
-        await callback.message.answer(f"➡Предстоящие смены\n"
-                                      f"Смену создал(а): {admin.name} {admin.surname}\n☎+7{admin.phone_number}\n"
-                                      f"{text}",
-                                      reply_markup=get_callback_buts(buts={
-                                          "Изменить смену🔄": f"changeshift_{upcoming_work_shift.id}",
-                                          "Удалить смену🗑": f"deleteshift_{upcoming_work_shift.id}",
-                                          "Посмотреть работников смены👷‍♂️": f"shiftworkers_{upcoming_work_shift.id}",},
-                                          sizes=(2, 1))
-                                      )
+    upcoming_working_shifts = await orm_get_upcoming_working_shifts(session)
+    if upcoming_working_shifts:
+        for upcoming_work_shift in await upcoming_working_shifts:
+            admin = await orm_get_admin(session, str(upcoming_work_shift.tg_id_admin))
+            text = await generation_text_shifts_workers(upcoming_work_shift)
+            await callback.message.answer(f"➡Предстоящие смены\n"
+                                          f"Смену создал(а): {admin.name} {admin.surname}\n☎+7{admin.phone_number}\n"
+                                          f"{text}",
+                                          reply_markup=get_callback_buts(buts={
+                                              "Изменить смену🔄": f"changeshift_{upcoming_work_shift.id}",
+                                              "Удалить смену🗑": f"deleteshift_{upcoming_work_shift.id}",
+                                              "Посмотреть работников смены👷‍♂️": f"shiftworkers_{upcoming_work_shift.id}",},
+                                              sizes=(2, 1))
+                                          )
+    else:
+        await callback.message.answer(f"Предстоящих смен еще нет.")
     await callback.answer()
 
 
